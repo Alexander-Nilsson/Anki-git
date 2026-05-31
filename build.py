@@ -20,9 +20,26 @@ def get_version():
     try:
         import tomllib
         with open("pyproject.toml", "rb") as f:
-            return tomllib.load(f)["project"]["version"]
+            pyproject_version = tomllib.load(f)["project"]["version"]
     except Exception:
-        return "0.1.1"
+        pyproject_version = "0.1.1"
+
+    init_path = Path("anki_git") / "__init__.py"
+    init_version = None
+    for line in init_path.read_text().splitlines():
+        if line.startswith("version"):
+            init_version = line.split("=")[1].strip().strip('"').strip("'")
+            break
+
+    if init_version and init_version != pyproject_version:
+        print(
+            f"ERROR: Version mismatch! "
+            f"pyproject.toml: {pyproject_version}, "
+            f"anki_git/__init__.py: {init_version}"
+        )
+        sys.exit(1)
+
+    return pyproject_version
 
 
 def clean():

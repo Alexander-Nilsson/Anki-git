@@ -5,6 +5,9 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
+
+from anki.collection import Collection
 
 from anki_git.engine.constants import DECKS_DIR, NOTETYPES_DIR
 from anki_git.formats.notes_md import Note, parse_notes_file
@@ -211,7 +214,7 @@ def compute_note_diff(old_note: Note | None, new_note: Note | None) -> NoteDiff:
     )
 
 
-def _notetype_to_canonical(nt) -> dict:
+def _notetype_to_canonical(nt: Notetype) -> dict[str, Any]:
     return {
         "name": nt.name,
         "id": nt.id,
@@ -226,7 +229,7 @@ def _notetype_to_canonical(nt) -> dict:
     }
 
 
-def _diff_field_lists(old_fields, new_fields) -> list[ComponentChange]:
+def _diff_field_lists(old_fields: list[Any], new_fields: list[Any]) -> list[ComponentChange]:
     changes = []
     old_by_name = {f.name: f for f in old_fields}
     new_by_name = {f.name: f for f in new_fields}
@@ -255,7 +258,7 @@ def _diff_field_lists(old_fields, new_fields) -> list[ComponentChange]:
     return changes
 
 
-def _diff_template_lists(old_tmpls, new_tmpls) -> list[ComponentChange]:
+def _diff_template_lists(old_tmpls: list[Any], new_tmpls: list[Any]) -> list[ComponentChange]:
     changes = []
     old_by_name = {t.name: t for t in old_tmpls}
     new_by_name = {t.name: t for t in new_tmpls}
@@ -355,7 +358,7 @@ def compute_notetype_diff(
     )
 
 
-def compute_export_diff(col, repo_path: Path, progress_callback: Callable | None = None) -> DiffReport:
+def compute_export_diff(col: Collection, repo_path: Path, progress_callback: Callable | None = None) -> DiffReport:
     """Compare current Anki collection vs repo state for export preview."""
     from anki_git.formats.notetype_yaml import read_all_notetypes as _read_nt
 
@@ -427,7 +430,7 @@ def compute_export_diff(col, repo_path: Path, progress_callback: Callable | None
     return report
 
 
-def compute_import_diff(col, repo_path: Path,
+def compute_import_diff(col: Collection, repo_path: Path,
                         progress_callback: Callable | None = None,
                         anki_notes: dict[int, Note] | None = None,
                         repo_notes: dict[int, Note] | None = None,
@@ -541,7 +544,7 @@ def _nid_from_deleted_path(path: Path) -> int | None:
         return None
 
 
-def compute_import_diff_delta(col, repo_path: Path,
+def compute_import_diff_delta(col: Collection, repo_path: Path,
                               progress_callback: Callable | None = None) -> ImportDiffData:
     """Delta-based import diff using git to find only changed files.
 
@@ -751,15 +754,9 @@ def _build_note_diff_report(
             if nd.change_type != "unchanged":
                 report.note_diffs.append(nd)
 
-    for nid, repo_note in repo_notes.items():
-        if nid not in seen_ids:
-            nd = compute_note_diff(repo_note, None)
-            if nd.change_type != "unchanged":
-                report.note_diffs.append(nd)
-
 
 def _full_export_diff_scan(
-    col,
+    col: Collection,
     repo_path: Path,
     old_notetypes: dict[str, Notetype],
     current_notetypes: dict[str, Notetype],
@@ -825,7 +822,7 @@ def _full_export_diff_scan(
 
 
 def compute_export_diff_delta(
-    col,
+    col: Collection,
     repo_path: Path,
     progress_callback: Callable | None = None,
 ) -> ExportDiffData:

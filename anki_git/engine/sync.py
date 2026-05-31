@@ -142,9 +142,9 @@ def sync_collection(
             continue
         result.conflicts_resolved += 1
 
-        if c.resolution == "anki":
+        if c.resolution == "anki" and c.conflict_type != ConflictType.DELETE_FROM_GIT:
             notes_to_export.add(c.nid)
-        elif c.resolution == "git":
+        elif c.resolution == "git" and c.conflict_type != ConflictType.DELETE_FROM_ANKI:
             notes_to_import_nids.add(c.nid)
 
         if c.conflict_type == ConflictType.DELETE_FROM_ANKI:

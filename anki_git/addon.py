@@ -1,6 +1,8 @@
 import datetime
 import logging
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from anki_git.config import AnkiGitConfig
 from anki_git.engine.exporter import export_collection
@@ -17,7 +19,7 @@ def _get_remote_url(repo_path: Path, enabled: bool = True) -> str:
     return get_existing_remote_url(repo) if repo else ""
 
 
-def _run_query_op(mw, op, on_success, on_failure, progress_text):
+def _run_query_op(mw: Any, op: Callable, on_success: Callable, on_failure: Callable, progress_text: str) -> None:
     from aqt.operations import QueryOp
     QueryOp(
         parent=mw,
@@ -28,7 +30,7 @@ def _run_query_op(mw, op, on_success, on_failure, progress_text):
     ).run_in_background()
 
 
-def _import(name):
+def _import(name: str) -> Any:
     import importlib
     try:
         return importlib.import_module(name)

@@ -16,6 +16,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from anki.collection import Collection
+
     from anki_git.formats.notes_md import Note
     from anki_git.formats.notetype_yaml import Notetype
 from dataclasses import dataclass, field
@@ -48,7 +50,7 @@ class ImportResult:
     conflict_report: object = None
 
 
-def preview_import(repo_path: Path, col=None) -> ImportResult:
+def preview_import(repo_path: Path, col: "Collection | None" = None) -> ImportResult:
     """Analyze what would change without applying anything (dry-run).
 
     If col is provided, performs real diffing via compute_import_diff.
@@ -94,7 +96,7 @@ def preview_import(repo_path: Path, col=None) -> ImportResult:
     )
 
 
-def pull_from_repo(col, repo_path: Path, conflict_callback=None,
+def pull_from_repo(col: "Collection", repo_path: Path, conflict_callback=None,
                    sync_mode: str = "accept_all",
                    anki_checksums: dict[str, str] | None = None,
                    git_checksums: dict[str, str] | None = None,
@@ -349,7 +351,7 @@ def pull_from_repo(col, repo_path: Path, conflict_callback=None,
     return result
 
 
-def import_from_repo(col, repo_path: Path,
+def import_from_repo(col: "Collection", repo_path: Path,
                      nid_filter: set[int] | None = None,
                      notes_lookup: dict[int, "Note"] | None = None,
                      repo_notetypes: dict[str, "Notetype"] | None = None) -> ImportResult:

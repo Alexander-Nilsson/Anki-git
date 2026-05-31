@@ -30,7 +30,10 @@ from anki_git.config import SyncMode
 _logger = logging.getLogger("anki_git")
 
 if TYPE_CHECKING:
+    from anki.collection import Collection
+
     from anki_git.formats.notes_md import Note
+    from anki_git.formats.notetype_yaml import Notetype, NotetypeField, NotetypeTemplate
 
 
 class ConflictType(Enum):
@@ -109,10 +112,10 @@ class NotetypeComponentConflict:
 
 
 def merge_notetypes(
-    anki_nt,
-    git_nt,
+    anki_nt: Notetype,
+    git_nt: Notetype,
     sync_mode: str,
-):
+) -> tuple[Notetype, list[NotetypeComponentConflict]]:
     """Two-way merge of notetypes using field/template IDs.
 
     Returns (merged_notetype, component_conflicts).
@@ -121,7 +124,7 @@ def merge_notetypes(
     conflicts: list[NotetypeComponentConflict] = []
 
     # ── Merge fields ──────────────────────────────────────────────
-    def field_key(f):
+    def field_key(f: NotetypeField) -> tuple[str, int]:
         return (f.name, f.ord)
 
     anki_fields_by_key = {field_key(f): f for f in anki_nt.fields}
@@ -147,7 +150,6 @@ def merge_notetypes(
                     c.resolution = "anki"
                     merged_fields.append(af)
                 else:
-                    # always_ask — leave unresolved, default to anki
                     merged_fields.append(af)
                 conflicts.append(c)
             else:
@@ -157,12 +159,11 @@ def merge_notetypes(
         else:
             merged_fields.append(gf)
 
-    # Re-number ords sequentially
     for i, f in enumerate(merged_fields):
         f.ord = i
 
     # ── Merge templates ───────────────────────────────────────────
-    def tmpl_key(t):
+    def tmpl_key(t: NotetypeTemplate) -> tuple[str, int]:
         return (t.name, t.ord)
 
     anki_tmpls_by_key = {tmpl_key(t): t for t in anki_nt.templates}
@@ -221,7 +222,6 @@ def merge_notetypes(
         css = anki_nt.css
 
     merged = anki_nt.__class__(
-
         name=anki_nt.name,
         id=anki_nt.id,
         fields=merged_fields,
@@ -234,7 +234,7 @@ def merge_notetypes(
     return merged, conflicts
 
 
-def enrich_conflicts_with_content(report: ConflictReport, col, repo_path: Path,
+def enrich_conflicts_with_content(report: ConflictReport, col: Collection, repo_path: Path,
                                   notes_lookup: dict[int, Note] | None = None) -> None:
     """Populate anki_content/git_content on true CONFLICT notes.
 
@@ -279,7 +279,7 @@ def process_conflicts(
     anki_checksums: dict[str, str],
     git_checksums: dict[str, str],
     sync_mode: str,
-    col,
+    col: Collection,
     repo_path: Path,
     notes_lookup: dict[int, Note] | None = None,
 ) -> ConflictReport:

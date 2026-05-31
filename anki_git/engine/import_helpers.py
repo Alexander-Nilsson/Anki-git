@@ -15,6 +15,7 @@ from anki.notes import NoteId
 from anki_git.engine.constants import DECKS_DIR, NOTETYPES_DIR
 
 if TYPE_CHECKING:
+    from anki_git.engine.importer import ImportResult
     from anki_git.formats.notes_md import Note
     from anki_git.formats.notetype_yaml import Notetype
 
@@ -194,7 +195,7 @@ def import_notetype(col: Collection, repo_path: Path, nt_name: str) -> bool:
     return True
 
 
-def import_notetypes(col: Collection, repo_path: Path, result,
+def import_notetypes(col: Collection, repo_path: Path, result: "ImportResult",
                      repo_notetypes: dict[str, "Notetype"] | None = None) -> None:
     """Import all notetypes from repo into Anki, updating result in-place.
 
@@ -249,7 +250,7 @@ def import_notetypes(col: Collection, repo_path: Path, result,
             result.notetypes_created += 1
 
 
-def import_notes(col: Collection, repo_path: Path, result,
+def import_notes(col: Collection, repo_path: Path, result: "ImportResult",
                  nid_filter: set[int] | None = None,
                  notes_lookup: dict[int, "Note"] | None = None) -> None:
     """Import notes from repo into Anki.
