@@ -125,6 +125,49 @@ def get_existing_remote_url(repo: Repo) -> str:
 
 _CHANGED_PREFIXES = ("decks/", "notetypes/")
 
+
+def _unquote_git_path(path: str) -> str:
+    """Unquote a C-style quoted path from git diff/status output.
+
+    Git quotes paths containing non-ASCII or special characters using
+    C-style octal escapes (e.g. ``"decks/\344\270\255/test.md"``).
+    This function converts quoted paths back to proper Unicode strings
+    and passes through unquoted paths unchanged.
+    """
+    if not path.startswith('"'):
+        return path
+    inner = path[1:-1]
+    result_bytes = bytearray()
+    i = 0
+    while i < len(inner):
+        if inner[i] == "\\":
+            if i + 3 < len(inner) and inner[i + 1] in "0123":
+                result_bytes.append(int(inner[i + 1 : i + 4], 8))
+                i += 4
+            elif i + 1 < len(inner):
+                c = inner[i + 1]
+                if c == "n":
+                    result_bytes.append(10)
+                elif c == "t":
+                    result_bytes.append(9)
+                elif c == "r":
+                    result_bytes.append(13)
+                elif c == "\\":
+                    result_bytes.append(ord("\\"))
+                elif c == '"':
+                    result_bytes.append(ord('"'))
+                else:
+                    result_bytes.append(ord(c))
+                i += 2
+            else:
+                result_bytes.append(ord("\\"))
+                i += 1
+        else:
+            result_bytes.append(ord(inner[i]))
+            i += 1
+    return result_bytes.decode("utf-8")
+
+
 def _is_content_path(path: str) -> bool:
     return path.startswith(_CHANGED_PREFIXES)
 
@@ -149,7 +192,7 @@ def get_changed_repo_files(repo_path: Path, last_commit_sha: str | None = None) 
                 parts = line.split("\t", 1)
                 if len(parts) < 2:
                     continue
-                status, path = parts[0][0], parts[1]
+                status, path = parts[0][0], _unquote_git_path(parts[1])
                 if not _is_content_path(path):
                     continue
                 if status == "D":
@@ -166,7 +209,7 @@ def get_changed_repo_files(repo_path: Path, last_commit_sha: str | None = None) 
                 continue
             index_status = line[0]
             wt_status = line[1]
-            path = line[3:]
+            path = _unquote_git_path(line[3:])
 
             if not _is_content_path(path):
                 continue

@@ -118,7 +118,7 @@ def pull_from_repo(col, repo_path: Path, conflict_callback=None,
     If anki_checksums / git_checksums / git_notes_lookup / repo_notetypes
     are provided, skips the corresponding filesystem scans.
     """
-    from anki_git.engine.checksums import load_meta, save_meta
+    from anki_git.engine.checksums import content_hash, load_meta, save_meta
     from anki_git.engine.conflict import ConflictType, process_conflicts
 
     if anki_checksums is None:
@@ -316,6 +316,26 @@ def pull_from_repo(col, repo_path: Path, conflict_callback=None,
     existing_checksums = meta.get("note_checksums", {})
     before_len = len(existing_checksums)
     existing_checksums.update(committed_checksums)
+
+    # Fill in checksums for all remaining collection notes so that
+    # future delta operations have a complete baseline for conflict detection.
+    if col.db is not None:
+        all_nids = col.db.list("SELECT id FROM notes WHERE id > 0")
+        missing_nids = [nid for nid in all_nids if str(nid) not in existing_checksums]
+        if missing_nids:
+            from anki_git.engine.export_helpers import capture_single_note
+            for i, nid in enumerate(missing_nids):
+                if i % 1000 == 0 and i > 0:
+                    _logger.info("Filling missing checksums: %d/%d", i, len(missing_nids))
+                captured = capture_single_note(col, nid)
+                if captured is not None:
+                    serialized, _ = captured
+                    existing_checksums[str(nid)] = content_hash(serialized)
+            _logger.info(
+                "Filled %d missing checksums (total=%d, added in import=%d)",
+                len(missing_nids), len(existing_checksums), len(committed_checksums),
+            )
+
     meta["note_checksums"] = existing_checksums
     _logger.info("DEBUG pull_from_repo: note_checksums %d->%d (added %d)",
                  before_len, len(existing_checksums), len(committed_checksums))

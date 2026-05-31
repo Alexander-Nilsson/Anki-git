@@ -665,10 +665,15 @@ def compute_import_diff_delta(col, repo_path: Path,
                     deck_name = col.decks.name(cards[0].did)
                 except Exception:
                     continue
-                anki_notes[nid] = Note(
-                    nid=nid, notetype=nt_name, tags=list(note_obj.tags),
-                    deck=deck_name, fields=dict(note_obj.items()),
-                )
+                # Try to find repo counterpart for proper diff pairing
+                repo_file = repo_path / DECKS_DIR / deck_name.replace("::", "/") / f"{nid}.md"
+                if repo_file.exists():
+                    for rn in parse_notes_file(repo_file):
+                        repo_notes[rn.nid] = rn
+                    anki_notes[nid] = Note(
+                        nid=nid, notetype=nt_name, tags=list(note_obj.tags),
+                        deck=deck_name, fields=dict(note_obj.items()),
+                    )
     except Exception:
         _logger.warning("Failed to fetch recently modified notes", exc_info=True)
 

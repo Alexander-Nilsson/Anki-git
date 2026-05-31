@@ -243,12 +243,6 @@ def write_export_data(
     if notes_changed > 0 or result.notetypes_changed > 0 or cleaned > 0:
         if progress_callback:
             progress_callback("Committing changes...")
-        meta["last_export_time"] = int(time.time())
-        meta["note_checksums"] = captured.note_checksums
-        meta["collection_path"] = captured.collection_path
-        meta["last_note_count"] = captured.last_note_count
-        meta["last_max_mod"] = captured.last_max_mod
-        save_meta(repo_path, meta)
         stage_files(repo, list(changed_files))
         create_snapshot_commit(repo, list(changed_files))
         if remote_url:
@@ -256,9 +250,15 @@ def write_export_data(
                 progress_callback("Pushing to remote...")
             push_to_remote(repo, remote_url)
 
+    meta["last_export_time"] = int(time.time())
+    meta["note_checksums"] = captured.note_checksums
+    meta["collection_path"] = captured.collection_path
     meta["last_note_count"] = captured.last_note_count
     meta["last_max_mod"] = captured.last_max_mod
-    meta["last_commit_sha"] = str(repo.head.commit)
+    try:
+        meta["last_commit_sha"] = repo.head.commit.hexsha
+    except (ValueError, Exception):
+        meta["last_commit_sha"] = ""
     save_meta(repo_path, meta)
 
     result.commit_count = get_commit_count(repo)

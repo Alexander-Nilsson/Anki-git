@@ -349,6 +349,13 @@ def detect_conflicts(
             report.conflicts.append(
                 NoteConflict(nid=nid, conflict_type=ConflictType.ANKI_WINS)
             )
+        elif base is None:
+            # No baseline checksum exists.  Both Anki and repo have the
+            # note but we cannot determine which one changed.  Default to
+            # GIT_WINS so repo content is applied (import direction).
+            report.conflicts.append(
+                NoteConflict(nid=nid, conflict_type=ConflictType.GIT_WINS)
+            )
         else:
             report.conflicts.append(
                 NoteConflict(nid=nid, conflict_type=ConflictType.CONFLICT)

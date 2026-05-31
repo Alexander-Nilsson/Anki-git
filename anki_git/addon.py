@@ -514,6 +514,30 @@ def _run_startup_import(config: AnkiGitConfig) -> None:
             _logger.info("User discarded startup import changes")
             return
 
+        selected_nids = diff_dialog.get_checked_nids()
+        selected_notetypes = diff_dialog.get_checked_notetypes()
+
+        if not selected_nids and not selected_notetypes:
+            _logger.info("No items selected on startup, skipping import")
+            return
+
+        for note in data.repo_notes.values():
+            if str(note.nid) in selected_nids and note.notetype not in selected_notetypes:
+                selected_notetypes.add(note.notetype)
+
+        data.anki_checksums = {
+            k: v for k, v in data.anki_checksums.items() if k in selected_nids
+        }
+        data.git_checksums = {
+            k: v for k, v in data.git_checksums.items() if k in selected_nids
+        }
+        data.repo_notes = {
+            k: v for k, v in data.repo_notes.items() if str(k) in selected_nids
+        }
+        data.repo_notetypes = {
+            k: v for k, v in data.repo_notetypes.items() if k in selected_notetypes
+        }
+
         _logger.info("User accepted startup import, starting import...")
 
         def do_import(col):
@@ -525,10 +549,20 @@ def _run_startup_import(config: AnkiGitConfig) -> None:
             backup_path.parent.mkdir(parents=True, exist_ok=True)
             backup_path.write_bytes(col_path.read_bytes())
 
+            def handle_conflicts_bg(report):
+                def _show():
+                    from anki_git.ui.conflicts import ConflictResolutionDialog
+                    diag = ConflictResolutionDialog(report, mw)
+                    diag.exec()
+                    return diag.resolved_report
+                from anki_git.ui.utils import run_on_main_sync
+                return run_on_main_sync(mw, _show)
+
             from anki_git.engine.importer import pull_from_repo
             result = pull_from_repo(
                 col, repo_path,
                 sync_mode=config.sync_mode,
+                conflict_callback=handle_conflicts_bg,
                 anki_checksums=data.anki_checksums,
                 git_checksums=data.git_checksums,
                 git_notes_lookup=data.repo_notes,

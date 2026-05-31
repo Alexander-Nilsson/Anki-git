@@ -97,8 +97,12 @@ def import_single_note(col: Collection, repo_path: Path, nid: int,
             if key in existing:
                 existing[key] = value
         existing.tags = note_data.tags
-        col.update_note(existing)
-        return True
+        try:
+            col.update_note(existing)
+            return True
+        except Exception as e:
+            _logger.warning("Failed to update note %d: %s", nid, e)
+            return False
     else:
         model_id = col.models.id_for_name(note_data.notetype)
         if model_id is None:
@@ -279,8 +283,14 @@ def import_notes(col: Collection, repo_path: Path, result,
                 if key in existing:
                     existing[key] = value
             existing.tags = note_data.tags
-            col.update_note(existing)
-            result.notes_updated += 1
+            try:
+                col.update_note(existing)
+                result.notes_updated += 1
+            except Exception as e:
+                _logger.warning("Failed to update note %d: %s", note_data.nid, e)
+                result.warnings.append(
+                    f"Failed to update note {note_data.nid}: {e}"
+                )
         else:
             model_id = col.models.id_for_name(note_data.notetype)
             if model_id is None:
