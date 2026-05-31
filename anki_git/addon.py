@@ -338,13 +338,6 @@ def import_action() -> None:
             )
 
         def on_import_done(result):
-            if result.errors:
-                _logger.error("Import failed: %s", result.errors)
-                QMessageBox.critical(
-                    mw, "AnkiGit", f"Import failed: {result.errors[0]}"
-                )
-                return
-
             parts = []
             if result.notes_updated:
                 parts.append(f"Notes updated: {result.notes_updated}")
@@ -574,12 +567,6 @@ def _run_startup_import(config: AnkiGitConfig) -> None:
             return result
 
         def on_import_done(result):
-            if result.errors:
-                QMessageBox.critical(
-                    mw, "AnkiGit", f"Import failed: {result.errors[0]}"
-                )
-                return
-
             parts = []
             if result.notes_updated:
                 parts.append(f"Notes updated: {result.notes_updated}")
@@ -591,6 +578,9 @@ def _run_startup_import(config: AnkiGitConfig) -> None:
                 parts.append(f"Notetypes created: {result.notetypes_created}")
             if result.warnings:
                 parts.append("Warnings: " + "; ".join(result.warnings[:3]))
+            if result.errors:
+                _logger.error("Import errors: %s", result.errors)
+                parts.append("Errors: " + "; ".join(result.errors[:5]))
             msg = "\n".join(parts) if parts else "Import complete."
             QMessageBox.information(mw, "AnkiGit Import", msg)
             mw.reset()
