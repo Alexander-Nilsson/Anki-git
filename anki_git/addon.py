@@ -123,7 +123,7 @@ def snapshot_action() -> None:
         QMessageBox.critical(mw, "AnkiGit", "No collection is open.")
         return
 
-    repo_path = Path(config.repo_path)
+    repo_path = Path(config.repo_path).expanduser().resolve()
 
     def get_diff_with_progress(col):
         _logger.info("Computing export diff (delta)...")
@@ -198,18 +198,18 @@ def snapshot_action() -> None:
             QMessageBox.information(mw, "AnkiGit Snapshot", msg)
 
         def on_export_failed(e):
-            _logger.exception("Export operation failed")
-            QMessageBox.critical(
-                mw, "AnkiGit", f"Snapshot failed: {e}"
-            )
+            error_msg = str(e) if e else "Unknown error"
+            _logger.error("Export operation failed: %s", error_msg)
+            if mw:
+                QMessageBox.critical(mw, "AnkiGit", f"Snapshot failed: {error_msg}")
 
         _run_query_op(mw, do_export, on_export_done, on_export_failed, "Taking Snapshot...")
 
     def on_diff_failed(e):
-        _logger.exception("Failed to compute export diff")
-        QMessageBox.critical(
-            mw, "AnkiGit", f"Failed to compute diff: {e}"
-        )
+        error_msg = str(e) if e else "Unknown error"
+        _logger.error("Failed to compute export diff: %s", error_msg)
+        if mw:
+            QMessageBox.critical(mw, "AnkiGit", f"Failed to compute diff: {error_msg}")
 
     _run_query_op(mw, get_diff_with_progress, on_diff_done, on_diff_failed, "Reviewing Changes...")
 
@@ -236,7 +236,7 @@ def import_action() -> None:
         QMessageBox.critical(mw, "AnkiGit", "No collection is open.")
         return
 
-    repo_path = Path(config.repo_path)
+    repo_path = Path(config.repo_path).expanduser().resolve()
     if not (repo_path / ".git").exists():
         QMessageBox.warning(
             mw, "AnkiGit",
@@ -360,18 +360,18 @@ def import_action() -> None:
             mw.reset()
 
         def on_import_failed(e):
-            _logger.exception("Import operation failed")
-            QMessageBox.critical(
-                mw, "AnkiGit", f"Import failed: {e}"
-            )
+            error_msg = str(e) if e else "Unknown error"
+            _logger.error("Import operation failed: %s", error_msg)
+            if mw:
+                QMessageBox.critical(mw, "AnkiGit", f"Import failed: {error_msg}")
 
         _run_query_op(mw, do_import, on_import_done, on_import_failed, "Pulling from Repo...")
 
     def on_diff_failed(e):
-        _logger.exception("Failed to compute import diff")
-        QMessageBox.critical(
-            mw, "AnkiGit", f"Failed to compute diff: {e}"
-        )
+        error_msg = str(e) if e else "Unknown error"
+        _logger.error("Failed to compute import diff: %s", error_msg)
+        if mw:
+            QMessageBox.critical(mw, "AnkiGit", f"Failed to compute diff: {error_msg}")
 
     _run_query_op(mw, get_diff_with_progress, on_diff_done, on_diff_failed, "Reviewing Changes...")
 
@@ -460,7 +460,7 @@ def _run_startup_import(config: AnkiGitConfig) -> None:
     from anki_git.engine.diff import compute_import_diff_delta
     from anki_git.ui import DiffDialog
 
-    repo_path = Path(config.repo_path)
+    repo_path = Path(config.repo_path).expanduser().resolve()
 
     # Synchronous git-only check — no collection access, no dialog
     try:
@@ -586,12 +586,18 @@ def _run_startup_import(config: AnkiGitConfig) -> None:
             mw.reset()
 
         def on_import_failed(e):
-            QMessageBox.critical(mw, "AnkiGit", f"Import failed: {e}")
+            error_msg = str(e) if e else "Unknown error"
+            _logger.error("Startup import failed: %s", error_msg)
+            if mw:
+                QMessageBox.critical(mw, "AnkiGit", f"Import failed: {error_msg}")
 
         _run_query_op(mw, do_import, on_import_done, on_import_failed, "Importing from repo...")
 
     def on_diff_failed(e):
-        QMessageBox.critical(mw, "AnkiGit", f"Failed to compute diff: {e}")
+        error_msg = str(e) if e else "Unknown error"
+        _logger.error("Startup diff failed: %s", error_msg)
+        if mw:
+            QMessageBox.critical(mw, "AnkiGit", f"Failed to compute diff: {error_msg}")
 
     _run_query_op(mw, do_startup_check, on_diff_done, on_diff_failed, "Checking for changes...")
 
@@ -605,7 +611,7 @@ def on_profile_open() -> None:
     if config.auto_sync_on_startup and config.repo_path:
         from aqt import mw
         if mw and mw.col:
-            repo_path = Path(config.repo_path)
+            repo_path = Path(config.repo_path).expanduser().resolve()
             if not (repo_path / ".git").exists():
                 return
             _fetch_remote_background(repo_path)
@@ -631,7 +637,7 @@ def on_profile_close() -> None:
     from aqt import mw
     if mw is None or mw.col is None:
         return
-    repo_path = Path(config.repo_path)
+    repo_path = Path(config.repo_path).expanduser().resolve()
     if not (repo_path / ".git").exists():
         return
 

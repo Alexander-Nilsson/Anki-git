@@ -248,7 +248,10 @@ def write_export_data(
         if remote_url:
             if progress_callback:
                 progress_callback("Pushing to remote...")
-            push_to_remote(repo, remote_url)
+            push_ok, push_error = push_to_remote(repo, remote_url)
+            if not push_ok:
+                result.error = push_error
+                _logger.error("Export commit succeeded but push failed: %s", push_error)
 
     meta["last_export_time"] = int(time.time())
     meta["note_checksums"] = captured.note_checksums
@@ -296,43 +299,47 @@ def export_collection(
     behaviour use capture_export_data() directly followed by a background
     call to write_export_data().
     """
-    if export_data is not None:
-        db = col.db
-        if db is None:
-            raise RuntimeError("Collection closed, aborting export")
-        all_nids = set(db.list("SELECT id FROM notes WHERE id > 0"))
-        last_note_count = db.scalar("SELECT COUNT(*) FROM notes WHERE id > 0") or 0
-        last_max_mod = db.scalar("SELECT MAX(mod) FROM notes WHERE id > 0") or 0
+    try:
+        if export_data is not None:
+            db = col.db
+            if db is None:
+                raise RuntimeError("Collection closed, aborting export")
+            all_nids = set(db.list("SELECT id FROM notes WHERE id > 0"))
+            last_note_count = db.scalar("SELECT COUNT(*) FROM notes WHERE id > 0") or 0
+            last_max_mod = db.scalar("SELECT MAX(mod) FROM notes WHERE id > 0") or 0
 
-        note_checksums = dict(export_data.note_checksums)
-        for nid_str in list(note_checksums):
-            if int(nid_str) not in all_nids:
-                del note_checksums[nid_str]
+            note_checksums = dict(export_data.note_checksums)
+            for nid_str in list(note_checksums):
+                if int(nid_str) not in all_nids:
+                    del note_checksums[nid_str]
 
-        captured = CapturedExport(
-            notetypes=export_data.notetypes,
-            changed_notetype_names=export_data.changed_notetype_names,
-            nids=set(export_data.note_entries.keys()),
-            all_nids=all_nids,
-            note_entries=list(export_data.note_entries.values()),
-            note_checksums=note_checksums,
-            collection_path=export_data.collection_path or str(col.path),
-            last_max_mod=last_max_mod,
-            last_note_count=last_note_count,
+            captured = CapturedExport(
+                notetypes=export_data.notetypes,
+                changed_notetype_names=export_data.changed_notetype_names,
+                nids=set(export_data.note_entries.keys()),
+                all_nids=all_nids,
+                note_entries=list(export_data.note_entries.values()),
+                note_checksums=note_checksums,
+                collection_path=export_data.collection_path or str(col.path),
+                last_max_mod=last_max_mod,
+                last_note_count=last_note_count,
+            )
+            return write_export_data(
+                repo_path, captured,
+                remote_url=remote_url,
+                progress_callback=progress_callback,
+            )
+
+        captured = capture_export_data(
+            col, repo_path,
+            quick=quick,
+            progress_callback=progress_callback,
         )
         return write_export_data(
             repo_path, captured,
             remote_url=remote_url,
             progress_callback=progress_callback,
         )
-
-    captured = capture_export_data(
-        col, repo_path,
-        quick=quick,
-        progress_callback=progress_callback,
-    )
-    return write_export_data(
-        repo_path, captured,
-        remote_url=remote_url,
-        progress_callback=progress_callback,
-    )
+    except Exception as e:
+        _logger.exception("Export failed with unexpected error")
+        return ExportResult(error=str(e))

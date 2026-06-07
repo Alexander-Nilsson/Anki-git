@@ -1,3 +1,4 @@
+import contextlib
 import logging
 from pathlib import Path
 
@@ -69,9 +70,14 @@ def create_snapshot_commit(
     repo.index.commit(message)
 
 
-def push_to_remote(repo: Repo, remote_url: str) -> None:
+def push_to_remote(repo: Repo, remote_url: str) -> tuple[bool, str]:
+    """Push to remote, returning (success, error_message).
+
+    Fetches first to reduce chance of non-fast-forward rejection.
+    Never raises — all errors are logged and returned as strings.
+    """
     if not remote_url:
-        return
+        return True, ""
     _logger.info("Pushing to remote: %s", remote_url)
     try:
         try:
@@ -84,10 +90,31 @@ def push_to_remote(repo: Repo, remote_url: str) -> None:
             remote = repo.create_remote("origin", remote_url)
 
         branch = repo.active_branch.name
-        remote.push(refspec=f"{branch}:{branch}")
-    except Exception:
-        _logger.exception("Failed to push to remote")
-        raise
+
+        # Fetch before push to reduce divergence
+        with contextlib.suppress(Exception):
+            remote.fetch()
+
+        try:
+            remote.push(refspec=f"{branch}:{branch}")
+        except GitCommandError as e:
+            stderr = getattr(e, "stderr", "") or ""
+            if "non-fast-forward" in stderr:
+                msg = (
+                    "Push rejected: remote has commits not present locally.\n"
+                    "If you made changes from another device, use "
+                    "'Import from Repo' first, then retry the export."
+                )
+            else:
+                msg = f"Push failed: {stderr.strip() or e}"
+            _logger.error(msg)
+            return False, msg
+    except Exception as e:
+        msg = f"Failed to push to remote: {e}"
+        _logger.error(msg)
+        return False, msg
+
+    return True, ""
 
 
 def is_dirty(repo: Repo) -> bool:
