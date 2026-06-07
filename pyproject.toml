@@ -1,6 +1,6 @@
 [project]
 name = "anki-git"
-version = "0.1.7"
+version = "0.1.8"
 description = "Git-based version control for Anki collections"
 readme = "README.md"
 license = { text = "AGPL-3.0-only" }

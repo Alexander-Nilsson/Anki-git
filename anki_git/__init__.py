@@ -8,7 +8,7 @@ The engine/ and formats/ layers can be imported and tested independently.
 import tomllib
 from pathlib import Path
 
-version = "0.1.7"
+version = "0.1.8"
 
 _pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
 if _pyproject_path.exists():
