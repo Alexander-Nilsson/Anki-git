@@ -445,6 +445,8 @@ class DiffDialog(QDialog):
 
         self._tree_items = []
 
+        self.sidebar.setUpdatesEnabled(False)
+
         if notes:
             decks_root = QTreeWidgetItem(self.sidebar, ["Decks"])
             decks_root.setFlags(decks_root.flags() & ~Qt.ItemFlag.ItemIsSelectable)
@@ -465,6 +467,7 @@ class DiffDialog(QDialog):
                 leaf.setCheckState(0, Qt.CheckState.Checked)
                 self._tree_items.append((leaf, item))
 
+        self.sidebar.setUpdatesEnabled(True)
         if self._tree_items:
             self.sidebar.setCurrentItem(self._tree_items[0][0])
 

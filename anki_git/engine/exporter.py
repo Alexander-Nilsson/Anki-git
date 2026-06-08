@@ -241,28 +241,39 @@ def write_export_data(
     result.changed_decks = deck_counts
 
     if notes_changed > 0 or result.notetypes_changed > 0 or cleaned > 0:
-        if progress_callback:
-            progress_callback("Committing changes...")
-        stage_files(repo, list(changed_files))
-        create_snapshot_commit(repo, list(changed_files))
+        try:
+            if progress_callback:
+                progress_callback("Committing changes...")
+            stage_files(repo, list(changed_files))
+            create_snapshot_commit(repo, list(changed_files))
+        except Exception as e:
+            result.error = f"Git commit failed: {e}"
+            _logger.error("Export commit failed: %s", e)
         if remote_url:
             if progress_callback:
                 progress_callback("Pushing to remote...")
-            push_ok, push_error = push_to_remote(repo, remote_url)
-            if not push_ok:
-                result.error = push_error
-                _logger.error("Export commit succeeded but push failed: %s", push_error)
+            try:
+                push_ok, push_error = push_to_remote(repo, remote_url)
+                if not push_ok:
+                    result.error = push_error
+                    _logger.error("Export commit succeeded but push failed: %s", push_error)
+            except Exception as e:
+                result.error = f"Push crashed: {e}"
+                _logger.error("Export commit succeeded but push crashed: %s", e)
 
-    meta["last_export_time"] = int(time.time())
-    meta["note_checksums"] = captured.note_checksums
-    meta["collection_path"] = captured.collection_path
-    meta["last_note_count"] = captured.last_note_count
-    meta["last_max_mod"] = captured.last_max_mod
     try:
-        meta["last_commit_sha"] = repo.head.commit.hexsha
-    except (ValueError, Exception):
-        meta["last_commit_sha"] = ""
-    save_meta(repo_path, meta)
+        meta["last_export_time"] = int(time.time())
+        meta["note_checksums"] = captured.note_checksums
+        meta["collection_path"] = captured.collection_path
+        meta["last_note_count"] = captured.last_note_count
+        meta["last_max_mod"] = captured.last_max_mod
+        try:
+            meta["last_commit_sha"] = repo.head.commit.hexsha
+        except (ValueError, Exception):
+            meta["last_commit_sha"] = ""
+        save_meta(repo_path, meta)
+    except Exception as e:
+        _logger.error("Failed to save meta after export: %s", e)
 
     result.commit_count = get_commit_count(repo)
     result.duration_seconds = time.perf_counter() - _start

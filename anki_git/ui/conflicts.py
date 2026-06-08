@@ -71,6 +71,7 @@ class ConflictResolutionDialog(QDialog):
                 QTableWidget.SelectionMode.SingleSelection
             )
             self._table.setRowCount(len(self._conflicts_list))
+            self._table.setUpdatesEnabled(False)
 
             for i, c in enumerate(self._conflicts_list):
                 self._table.setItem(
@@ -85,6 +86,7 @@ class ConflictResolutionDialog(QDialog):
                 )
                 self._table.setCellWidget(i, 2, action_btn)
 
+            self._table.setUpdatesEnabled(True)
             self._table.resizeColumnsToContents()
             self._table.itemSelectionChanged.connect(self._on_selection_changed)
             top_layout.addWidget(self._table)

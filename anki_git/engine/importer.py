@@ -259,60 +259,30 @@ def pull_from_repo(col: "Collection", repo_path: Path, conflict_callback=None,
         if not parts:
             parts.append("cleanup")
         msg = f"Import {', '.join(parts)} from repo"
-        _logger.info("DEBUG pull_from_repo: about to git-add-all")
         repo.git.add(all=True)
-        staged_before = len(repo.git.diff("--cached", "--name-status").splitlines())
-        _logger.info("DEBUG pull_from_repo: staged_before=%d", staged_before)
-
-        # Unstage note files that were NOT imported
-        unstaged = 0
-        for line in repo.git.diff("--cached", "--name-status").splitlines():
-            if not line.strip():
-                continue
-            parts_line = line.split("\t", 1)
-            if len(parts_line) < 2:
-                continue
-            path_str = parts_line[1]
-            p = Path(path_str)
-            if p.suffix != ".md" or p.parts[:1] != ("decks",):
-                continue
-            nid = _nid_from_path(p)
-            if nid is not None and nid not in all_imported_nids:
-                repo.git.reset("--", path_str)
-                unstaged += 1
-                _logger.info("DEBUG pull_from_repo: unstaged nid=%d path=%s", nid, path_str)
-
-        staged_after = len(repo.git.diff("--cached", "--name-status").splitlines())
-        _logger.info(
-            "Verification commit: %d files staged, %d unstaged, %d remaining",
-            staged_before, unstaged, staged_after,
-        )
+        staged_count = len(repo.git.diff("--cached", "--name-status").splitlines())
+        _logger.info("Verification commit: %d files staged", staged_count)
 
         committed = False
         try:
             repo.index.commit(msg)
             _logger.info("Verification commit created: %s", msg)
             committed = True
-        except Exception as e:
-            _logger.error(
-                "Verification commit skipped — no files staged. "
-                "resolved_nids=%s delete_from_git_nids=%s total_imported=%d err=%s",
-                sorted(resolved_nids)[:10],
-                sorted(delete_from_git_nids)[:10],
-                total_imported,
-                e,
-            )
+        except Exception:
+            _logger.info("Verification commit skipped — nothing to commit (already up to date)")
 
-        # Record checksums only for nids that were actually committed
+        # Record git checksums for committed files so future delta
+        # operations see them as baselined — regardless of how many
+        # notes were actually imported into Anki.
         if committed:
             for nid in all_imported_nids:
                 sn = str(nid)
-                if nid in anki_wins_nids:
-                    if sn in anki_checksums:
-                        committed_checksums[sn] = anki_checksums[sn]
-                elif sn in git_checksums:
+                if sn in git_checksums:
                     committed_checksums[sn] = git_checksums[sn]
-            _logger.info("DEBUG pull_from_repo: committed_checksums=%d entries", len(committed_checksums))
+            _logger.info(
+                "pull_from_repo: committed_checksums=%d entries (total_imported=%d)",
+                len(committed_checksums), total_imported,
+            )
 
     # Persist tracking metadata
     existing_checksums = meta.get("note_checksums", {})
@@ -338,8 +308,20 @@ def pull_from_repo(col: "Collection", repo_path: Path, conflict_callback=None,
                 len(missing_nids), len(existing_checksums), len(committed_checksums),
             )
 
+    # Prune stale base checksums: remove entries for nids that no longer
+    # exist in either Anki or git. This prevents unbounded bloat in meta.json
+    # from deleted notes accumulating over time.
+    live_nids = set(anki_checksums) | set(git_checksums) | {
+        str(nid) for nid in resolved_nids
+    }
+    if live_nids:
+        stale = len(existing_checksums) - sum(1 for k in existing_checksums if k in live_nids)
+        if stale > 0:
+            existing_checksums = {k: v for k, v in existing_checksums.items() if k in live_nids}
+            _logger.info("Pruned %d stale checksums (remaining=%d)", stale, len(existing_checksums))
+
     meta["note_checksums"] = existing_checksums
-    _logger.info("DEBUG pull_from_repo: note_checksums %d->%d (added %d)",
+    _logger.info("pull_from_repo: note_checksums %d->%d (added %d)",
                  before_len, len(existing_checksums), len(committed_checksums))
 
     if repo:

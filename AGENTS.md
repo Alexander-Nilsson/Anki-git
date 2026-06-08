@@ -71,7 +71,7 @@ uv run python build.py all                   # clean → build → package .anki
 6. `DiffDialog`: show changes, user accepts/rejects
 7. Accepted → backup → `pull_from_repo()` with pre-computed `ImportDiffData`:
    - `import_notes()` and `import_notetypes()` skip re-scanning
-   - Verification commit → push
+   - Verification commit commits ALL staged files (no unstaging of unchecked nids)
 8. Rejected → silent exit
 
 **Export / Snapshot (`snapshot_action`)**:
@@ -96,6 +96,22 @@ uv run python build.py all                   # clean → build → package .anki
 4. Background thread: `write_export_data()`:
    - Writes files, git commit, push
    - No collection access required
+
+## Troubleshooting
+
+**2472-item re-detection loop at startup:**
+- Root cause: user unchecked notes in DiffDialog → `pull_from_repo`'s verification commit unstaged those files (`git reset HEAD --`) → files remained as untracked/pending → `_content_has_changes()` returned True on every startup → loop persisted.
+- **Fix:** Removal of unstaging loop in `importer.py` — verification commit now commits ALL staged files unconditionally. Unchecked notes skip Anki import but their git state is still baselined.
+- **Secondary cause:** `write_export_data` push crash prevents meta save → stale `last_commit_sha` → re-detects all changes on next startup. **Fix:** push/commit wrapped in try/except, meta save wrapped in try/finally.
+
+**Python 3.14 `sys.excepthook is None` RuntimeError:**
+- CPython threading bug triggered when GitPython subprocess threads crash and `sys.excepthook` is None (common in embedded Python/Anki).
+- `push_to_remote` catches via `except Exception` (RuntimeError is subclass), returns `(False, error_msg)`.
+- `write_export_data` now wraps push in try/except to prevent crash from preventing meta save.
+
+**DiffDialog freezes with 2000+ items:**
+- `_populate_tree()` creates one QTreeWidgetItem per change on the main thread; each insertion triggers layout recalculation.
+- **Fix:** wrap inserts in `setUpdatesEnabled(False/True)` in `ui/diff.py`.
 
 ## Quirks
 
