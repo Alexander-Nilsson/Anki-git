@@ -376,6 +376,7 @@ def import_action() -> None:
     _run_query_op(mw, get_diff_with_progress, on_diff_done, on_diff_failed, "Reviewing Changes...")
 
 
+
 def settings_action() -> None:
     from aqt import mw
 
@@ -409,6 +410,8 @@ def show_menu() -> None:
     import_act = QAction("Import from Repo", mw)
     import_act.triggered.connect(import_action)
     parent_menu.addAction(import_act)
+
+    parent_menu.addSeparator()
 
     settings_act = QAction("Settings...", mw)
     settings_act.triggered.connect(settings_action)
