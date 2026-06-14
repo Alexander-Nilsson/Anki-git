@@ -50,10 +50,9 @@ jobs:
         run: |
           uv venv --seed
           uv sync --frozen --no-dev --no-cache
-          .venv/bin/pip install \
+            .venv/bin/pip install \
             "pytest>=8.4.1" "pytest-cov>=6.1.1" \
-            "ruff>=0.11.0" \
-            pyright
+            "ruff>=0.11.0"
 
       - name: Install anki/aqt for integration tests
         run: |
@@ -67,7 +66,7 @@ jobs:
 
       - name: Type Check
         run: |
-          .venv/bin/pyright anki_git/
+          uvx ty check .
 
       - name: Test
         run: |

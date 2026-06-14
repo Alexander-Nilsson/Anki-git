@@ -10,7 +10,9 @@ from anki.collection import Collection
 if TYPE_CHECKING:
     from anki_git.engine.diff import ExportDiffData
 
-from anki_git.engine import export_helpers
+from git.repo import Repo
+
+from anki_git.engine import export_helpers  # noqa: I001
 from anki_git.engine.checksums import content_hash, load_meta, save_meta
 from anki_git.engine.constants import DECKS_DIR, NOTETYPES_DIR
 from anki_git.engine.git_ops import (
@@ -61,6 +63,7 @@ class CapturedExport:
     All note data is serialized to strings so the write phase can run
     without access to the collection object.
     """
+
     notetypes: dict[str, Notetype]
     changed_notetype_names: list[str]
     nids: set[int]
@@ -118,9 +121,7 @@ def capture_export_data(
         if progress_callback:
             progress_callback("Checking for changed notes...")
         last_max_mod = meta["last_max_mod"]
-        changed_nids = set(
-            db.list("SELECT id FROM notes WHERE mod > ? AND id > 0", last_max_mod)
-        )
+        changed_nids = set(db.list("SELECT id FROM notes WHERE mod > ? AND id > 0", last_max_mod))
         all_nids = set(db.list("SELECT id FROM notes WHERE id > 0"))
         nids = changed_nids & all_nids
         total = len(nids)
@@ -168,6 +169,26 @@ def capture_export_data(
         last_max_mod=last_max_mod,
         last_note_count=last_note_count,
     )
+
+
+def _save_meta_after_export(
+    meta: dict, captured: CapturedExport, repo: Repo, repo_path: Path
+) -> None:
+    """Update meta.json with post-export state.
+
+    Must be called after the commit is created (so last_commit_sha is current).
+    Safe to call even when nothing changed — it persists the current HEAD SHA.
+    """
+    meta["last_export_time"] = int(time.time())
+    meta["note_checksums"] = captured.note_checksums
+    meta["collection_path"] = captured.collection_path
+    meta["last_note_count"] = captured.last_note_count
+    meta["last_max_mod"] = captured.last_max_mod
+    try:
+        meta["last_commit_sha"] = repo.head.commit.hexsha
+    except (ValueError, Exception):
+        meta["last_commit_sha"] = ""
+    save_meta(repo_path, meta)
 
 
 def write_export_data(
@@ -249,6 +270,15 @@ def write_export_data(
         except Exception as e:
             result.error = f"Git commit failed: {e}"
             _logger.error("Export commit failed: %s", e)
+
+        # Save meta BEFORE push so the commit SHA is persisted even if
+        # push crashes with RuntimeError (sys.excepthook is None on
+        # Python 3.14 in embedded Anki).
+        try:
+            _save_meta_after_export(meta, captured, repo, repo_path)
+        except Exception as e:
+            _logger.error("Failed to save meta after export: %s", e)
+
         if remote_url:
             if progress_callback:
                 progress_callback("Pushing to remote...")
@@ -261,19 +291,13 @@ def write_export_data(
                 result.error = f"Push crashed: {e}"
                 _logger.error("Export commit succeeded but push crashed: %s", e)
 
-    try:
-        meta["last_export_time"] = int(time.time())
-        meta["note_checksums"] = captured.note_checksums
-        meta["collection_path"] = captured.collection_path
-        meta["last_note_count"] = captured.last_note_count
-        meta["last_max_mod"] = captured.last_max_mod
+    else:
+        # No changes — still update meta in case external operations
+        # modified the commit history (e.g. fetched from remote).
         try:
-            meta["last_commit_sha"] = repo.head.commit.hexsha
-        except (ValueError, Exception):
-            meta["last_commit_sha"] = ""
-        save_meta(repo_path, meta)
-    except Exception as e:
-        _logger.error("Failed to save meta after export: %s", e)
+            _save_meta_after_export(meta, captured, repo, repo_path)
+        except Exception as e:
+            _logger.error("Failed to save meta after export: %s", e)
 
     result.commit_count = get_commit_count(repo)
     result.duration_seconds = time.perf_counter() - _start
@@ -284,9 +308,7 @@ def write_export_data(
         result.notetypes_changed,
     )
     if progress_callback:
-        progress_callback(
-            f"Snapshot complete ({result.duration_seconds:.1f}s)"
-        )
+        progress_callback(f"Snapshot complete ({result.duration_seconds:.1f}s)")
 
     return result
 
@@ -336,18 +358,21 @@ def export_collection(
                 last_note_count=last_note_count,
             )
             return write_export_data(
-                repo_path, captured,
+                repo_path,
+                captured,
                 remote_url=remote_url,
                 progress_callback=progress_callback,
             )
 
         captured = capture_export_data(
-            col, repo_path,
+            col,
+            repo_path,
             quick=quick,
             progress_callback=progress_callback,
         )
         return write_export_data(
-            repo_path, captured,
+            repo_path,
+            captured,
             remote_url=remote_url,
             progress_callback=progress_callback,
         )

@@ -88,7 +88,7 @@ uv sync                           # create venv + install deps
 uv run pytest tests/ -m "not integration"   # engine-layer tests only
 uv run pytest tests/              # all tests (needs anki/aqt)
 uv run ruff check anki_git/ tests/           # lint
-uv run pyright anki_git/          # type check (engine layer)
+uvx ty check .          # type check
 python3 build.py all              # creates .ankiaddon in build/
 ```
 

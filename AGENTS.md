@@ -48,11 +48,22 @@ anki_git/
 
 ## Commands
 
+### Local development (fast feedback — uses `uvx` for cached, unconstrained deps)
+
+```bash
+uvx pytest tests/ -m "not integration"    # engine-layer tests only (fast)
+uvx ruff check anki_git/ tests/           # lint
+uvx ruff format .                          # format
+uvx ty check .                             # type check
+```
+
+### Full suite (uses `uv run` — validates against locked dependencies)
+
 ```bash
 uv run pytest tests/                         # all tests (needs anki/aqt installed)
-uv run pytest tests/ -m "not integration"    # engine-layer tests only
 uv run ruff check anki_git/ tests/           # lint
-uv run pyright anki_git/                     # type check (engine layer only)
+uv run ruff format . --check                 # format check
+uv run ty check .                            # type check
 uv run python build.py all                   # clean → build → package .ankiaddon
 # version bump handled by CI/CD on push to main
 ```
@@ -102,12 +113,15 @@ uv run python build.py all                   # clean → build → package .anki
 **2472-item re-detection loop at startup:**
 - Root cause: user unchecked notes in DiffDialog → `pull_from_repo`'s verification commit unstaged those files (`git reset HEAD --`) → files remained as untracked/pending → `_content_has_changes()` returned True on every startup → loop persisted.
 - **Fix:** Removal of unstaging loop in `importer.py` — verification commit now commits ALL staged files unconditionally. Unchecked notes skip Anki import but their git state is still baselined.
-- **Secondary cause:** `write_export_data` push crash prevents meta save → stale `last_commit_sha` → re-detects all changes on next startup. **Fix:** push/commit wrapped in try/except, meta save wrapped in try/finally.
 
-**Python 3.14 `sys.excepthook is None` RuntimeError:**
-- CPython threading bug triggered when GitPython subprocess threads crash and `sys.excepthook` is None (common in embedded Python/Anki).
-- `push_to_remote` catches via `except Exception` (RuntimeError is subclass), returns `(False, error_msg)`.
-- `write_export_data` now wraps push in try/except to prevent crash from preventing meta save.
+**Notetype-only re-detection loop (same diff on every startup):**
+- Root cause: user accepts import with only notetypes checked (no notes). `anki_checksums` and `git_checksums` are both empty → `needs_commit` is False → no verification commit → dirty repo files remain unbaselined → `quick_repo_has_changes()` returns True every startup → same notetype diff shown repeatedly. Even when notes ARE checked, the on-close auto-export only commits its own changed files (via `stage_files` + `create_snapshot_commit`), so any dirty files from a skipped verification commit persist.
+- **Fix:** `pull_from_repo()` in `importer.py` now checks `repo.is_dirty()` for `decks/` and `notetypes/` when `needs_commit` is False. If dirty content exists, forces a verification commit regardless. This ensures all repo changes are baselined even when no notes were resolved in conflict detection.
+
+**`sys.excepthook is None` RuntimeError on push:**
+- Root cause: CPython 3.14 throws `RuntimeError("sys.excepthook is None")` when `threading.Thread.__init__` runs in embedded Python (Anki) where `sys.excepthook` is None. GitPython's push mechanism creates pump-stream threads that trigger this.
+- **Fix:** `write_export_data()` now saves `meta.json` (including `last_commit_sha`) BEFORE the push attempt. Previously meta save was after push — if push crashed, the commit SHA was never persisted, causing the next startup to detect the same files as changed again.
+- **Secondary cause:** `write_export_data` push crash prevents meta save → stale `last_commit_sha` → re-detects all changes on next startup. **Fix:** push/commit wrapped in try/except, meta save wrapped in try/finally.
 
 **DiffDialog freezes with 2000+ items:**
 - `_populate_tree()` creates one QTreeWidgetItem per change on the main thread; each insertion triggers layout recalculation.
@@ -119,7 +133,7 @@ uv run python build.py all                   # clean → build → package .anki
 - **Version in two places** — update both `pyproject.toml` AND `anki_git/__init__.py`.
 - **`engine/importer.py`** uses `rglob("*.md")` which matches both `<nid>.md` and legacy `notes.md` — `parse_notes_file()` handles both formats.
 - **Menu:** "Export to Repo" (Anki→Git), "Import from Repo" (Git→Anki), "Settings..."
-- **Ruff + pyright** for static analysis. Config in `pyproject.toml`.
+- **Ruff + ty** for static analysis. Config in `pyproject.toml`.
 - **License is AGPL-3.0-only**.
 - **Fixtures** in `tests/conftest.py` provide `anki_session` (headless Anki) and `mock_aqt_mw`.
 - **Pre-commit hooks** available (`.pre-commit-config.yaml`).**

@@ -110,7 +110,7 @@ def import_single_note(col: Collection, repo_path: Path, nid: int,
             _logger.warning("Notetype '%s' not found for nid %d",
                             note_data.notetype, nid)
             return False
-        new_note = col.new_note(model_id)  # pyright: ignore[reportArgumentType]
+        new_note = col.new_note(model_id)  # ty: ignore[invalid-argument-type]
         for key, value in note_data.fields.items():
             if key in new_note:
                 new_note[key] = value
@@ -304,7 +304,7 @@ def import_notes(col: Collection, repo_path: Path, result: "ImportResult",
                     f"for nid {note_data.nid}"
                 )
                 continue
-            new_note = col.new_note(model_id)  # pyright: ignore[reportArgumentType]
+            new_note = col.new_note(model_id)  # ty: ignore[invalid-argument-type]
             for key, value in note_data.fields.items():
                 if key in new_note:
                     new_note[key] = value

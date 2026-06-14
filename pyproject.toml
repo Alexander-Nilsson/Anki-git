@@ -15,7 +15,7 @@ dev = [
     "pytest>=8.4.1",
     "pytest-cov>=6.1.1",
     "ruff>=0.11.0",
-    "pyright>=1.1.409",
+
     "anki>=25.9.4",
     "aqt>=25.9.4",
 ]
@@ -41,14 +41,14 @@ markers = [
 filterwarnings = []
 addopts = "-ra -q"
 
-[tool.pyright]
-include = ["anki_git", "tests"]
-exclude = ["**/__pycache__"]
-typeCheckingMode = "standard"
-reportMissingTypeStubs = "none"
-reportMissingParameterType = "warning"
-reportOptionalCall = "warning"
-reportUnusedVariable = "warning"
-reportUnknownParameterType = "warning"
-reportMissingImports = "none"
+[tool.ty]
+
+[tool.ty.src]
+src = ["anki_git", "tests"]
+
+[tool.ty.rules]
+unresolved-import = "warn"
+invalid-argument-type = "warn"
+invalid-assignment = "warn"
+invalid-method-override = "warn"
 
