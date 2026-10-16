@@ -17,16 +17,16 @@ from pathlib import Path
 from anki.collection import Collection
 from anki.notes import NoteId
 
-from anki_git.config import SyncMode
-from anki_git.engine import export_helpers, import_helpers
-from anki_git.engine.checksums import content_hash, load_meta, save_meta
-from anki_git.engine.conflict import (
+from ..config import SyncMode
+from . import export_helpers, import_helpers
+from .checksums import content_hash, load_meta, save_meta
+from .conflict import (
     ConflictType,
     merge_notetypes,
     process_conflicts,
 )
-from anki_git.engine.constants import DECKS_DIR, NOTETYPES_DIR
-from anki_git.engine.git_ops import (
+from .constants import DECKS_DIR, NOTETYPES_DIR
+from .git_ops import (
     create_snapshot_commit,
     ensure_gitignore,
     get_commit_count,
@@ -34,8 +34,8 @@ from anki_git.engine.git_ops import (
     push_to_remote,
     stage_files,
 )
-from anki_git.formats.notes_md import Note
-from anki_git.formats.notetype_yaml import (
+from ..formats.notes_md import Note
+from ..formats.notetype_yaml import (
     Notetype,
     notetype_paths,
     read_all_notetypes,

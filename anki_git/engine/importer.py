@@ -18,11 +18,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from anki.collection import Collection
 
-    from anki_git.formats.notes_md import Note
-    from anki_git.formats.notetype_yaml import Notetype
+    from ..formats.notes_md import Note
+    from ..formats.notetype_yaml import Notetype
 from dataclasses import dataclass, field
 
-from anki_git.engine import import_helpers
+from . import import_helpers
 
 _logger = logging.getLogger("anki_git")
 
@@ -57,7 +57,7 @@ def preview_import(repo_path: Path, col: "Collection | None" = None) -> ImportRe
     Otherwise falls back to simple file counting.
     """
     if col is not None:
-        from anki_git.engine.diff import compute_import_diff_delta
+        from .diff import compute_import_diff_delta
 
         data = compute_import_diff_delta(col, repo_path)
         report = data.report
@@ -81,8 +81,8 @@ def preview_import(repo_path: Path, col: "Collection | None" = None) -> ImportRe
         )
 
     # Fallback: simple file counting without collection access
-    from anki_git.formats.notes_md import parse_notes_file
-    from anki_git.formats.notetype_yaml import read_all_notetypes
+    from ..formats.notes_md import parse_notes_file
+    from ..formats.notetype_yaml import read_all_notetypes
 
     notetypes_dir = repo_path / "notetypes"
     decks_dir = repo_path / "decks"
@@ -127,8 +127,8 @@ def pull_from_repo(
     If anki_checksums / git_checksums / git_notes_lookup / repo_notetypes
     are provided, skips the corresponding filesystem scans.
     """
-    from anki_git.engine.checksums import content_hash, load_meta, save_meta
-    from anki_git.engine.conflict import ConflictType, process_conflicts
+    from .checksums import content_hash, load_meta, save_meta
+    from .conflict import ConflictType, process_conflicts
 
     if anki_checksums is None:
         anki_checksums = import_helpers.compute_anki_checksums(col)
@@ -223,9 +223,9 @@ def pull_from_repo(
     # Write Anki-winning content to git files so the repo converges.
     # This prevents the same conflict from being detected on every import.
     if anki_wins_nids:
-        from anki_git.engine.constants import DECKS_DIR
-        from anki_git.engine.export_helpers import capture_single_note
-        from anki_git.formats.notes_md import write_note_file
+        from .constants import DECKS_DIR
+        from .export_helpers import capture_single_note
+        from ..formats.notes_md import write_note_file
 
         for nid in anki_wins_nids:
             captured = capture_single_note(col, nid)
@@ -256,7 +256,7 @@ def pull_from_repo(
     meta["last_note_count"] = col.db.scalar("SELECT COUNT(*) FROM notes WHERE id > 0") or 0
     meta["last_max_mod"] = col.db.scalar("SELECT MAX(mod) FROM notes WHERE id > 0") or 0
 
-    from anki_git.engine.git_ops import open_repo
+    from .git_ops import open_repo
 
     repo = open_repo(repo_path)
 
@@ -363,7 +363,7 @@ def pull_from_repo(
         all_nids = col.db.list("SELECT id FROM notes WHERE id > 0")
         missing_nids = [nid for nid in all_nids if str(nid) not in existing_checksums]
         if missing_nids:
-            from anki_git.engine.export_helpers import capture_single_note
+            from .export_helpers import capture_single_note
 
             for i, nid in enumerate(missing_nids):
                 if i % 1000 == 0 and i > 0:

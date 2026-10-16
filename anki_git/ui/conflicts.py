@@ -18,7 +18,7 @@ from aqt.qt import (
     QVBoxLayout,
 )
 
-from anki_git.engine.conflict import ConflictReport, ConflictType
+from ..engine.conflict import ConflictReport, ConflictType
 
 
 class ConflictResolutionDialog(QDialog):

@@ -92,6 +92,10 @@ uvx ty check .          # type check
 python3 build.py all              # creates .ankiaddon in build/
 ```
 
+The build bundles GitPython (and its dependencies) into the add-on's `vendor/` folder, so the
+add-on must be installed from the built `.ankiaddon`; a plain copy of `anki_git/` will not have
+its dependencies. `vendor/` is gitignored.
+
 ## Architecture
 
 See [`docs/architecture.md`](docs/architecture.md) for the full architecture overview, module dependency graph, core flow diagrams, and sequence diagrams.

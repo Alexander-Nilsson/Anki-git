@@ -14,10 +14,10 @@ from typing import TYPE_CHECKING
 from anki.collection import Collection
 from anki.notes import NoteId
 
-from anki_git.engine.constants import DECKS_DIR
+from .constants import DECKS_DIR
 
 if TYPE_CHECKING:
-    from anki_git.formats.notes_md import Note
+    from ..formats.notes_md import Note
 
 _logger = logging.getLogger("anki_git")
 
@@ -29,7 +29,7 @@ def capture_single_note(col: Collection, nid: int) -> tuple[str, Note] | None:
     The caller is responsible for checksum comparison and file writing.
     Raises RuntimeError if the collection is closed.
     """
-    from anki_git.formats.notes_md import Note
+    from ..formats.notes_md import Note
 
     if col.db is None:
         raise RuntimeError("Collection closed, aborting export")
@@ -75,7 +75,7 @@ def export_single_note(col: Collection, repo_path: Path, nid: int) -> tuple[Path
     Returns (file_path, serialized_content, Note) on success, None on failure.
     The caller is responsible for checksum comparison if needed.
     """
-    from anki_git.formats.notes_md import write_note_file
+    from ..formats.notes_md import write_note_file
 
     captured = capture_single_note(col, nid)
     if captured is None:

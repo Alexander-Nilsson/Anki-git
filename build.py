@@ -15,6 +15,44 @@ import sys
 import zipfile
 from pathlib import Path
 
+# Pure-Python runtime dependencies bundled into the add-on (Anki add-ons cannot
+# pip install). Version specifiers are taken from pyproject.toml.
+VENDORED_PACKAGES = ["gitpython"]
+
+
+def get_vendor_requirements():
+    import re
+    import tomllib
+
+    with open("pyproject.toml", "rb") as f:
+        deps = tomllib.load(f)["project"]["dependencies"]
+    reqs = [
+        d for d in deps
+        if re.split(r"[<>=!~\[ ;]", d, maxsplit=1)[0].lower() in VENDORED_PACKAGES
+    ]
+    if len(reqs) != len(VENDORED_PACKAGES):
+        print(f"ERROR: {VENDORED_PACKAGES} not all found in pyproject.toml dependencies")
+        sys.exit(1)
+    return reqs
+
+
+def vendor_dependencies(build_dir):
+    vendor_dir = build_dir / "vendor"
+    reqs = get_vendor_requirements()
+    print(f"  Vendoring {', '.join(reqs)} into {vendor_dir} ...")
+    subprocess.run(
+        [
+            sys.executable, "-m", "pip", "install",
+            "--target", str(vendor_dir),
+            "--only-binary", ":all:",
+            "--no-compile", "--no-user", "--disable-pip-version-check",
+            *reqs,
+        ],
+        check=True,
+    )
+    for pycache in vendor_dir.rglob("__pycache__"):
+        shutil.rmtree(pycache, ignore_errors=True)
+
 
 def get_version():
     try:
@@ -67,13 +105,15 @@ def build_addon():
         sys.exit(1)
 
     for item in src.iterdir():
-        if item.name in ("__pycache__", "meta.json"):
+        if item.name in ("__pycache__", "meta.json", "vendor"):
             continue
         dst = build_dir / item.name
         if item.is_dir():
             shutil.copytree(item, dst, ignore=shutil.ignore_patterns("__pycache__"))
         else:
             shutil.copy2(item, dst)
+
+    vendor_dependencies(build_dir)
 
     # Generate manifest.json
     manifest = {
@@ -85,12 +125,6 @@ def build_addon():
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
     print(f"  manifest.json written")
-
-    # Copy config.json if it exists at repo root
-    config_src = Path("config.json")
-    if config_src.exists():
-        shutil.copy2(config_src, build_dir / "config.json")
-        print("  config.json copied")
 
     print(f"  Built at {build_dir}")
 

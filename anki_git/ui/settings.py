@@ -15,9 +15,9 @@ from aqt.qt import (
 )
 from git import GitCommandError
 
-from anki_git.config import SYNC_MODE_CHOICES, AnkiGitConfig
-from anki_git.engine.checksums import load_meta
-from anki_git.engine.git_ops import get_existing_remote_url, open_repo
+from ..config import SYNC_MODE_CHOICES, AnkiGitConfig
+from ..engine.checksums import load_meta
+from ..engine.git_ops import get_existing_remote_url, open_repo
 
 
 class SettingsDialog(QDialog):

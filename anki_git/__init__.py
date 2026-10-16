@@ -5,8 +5,15 @@ This module registers Anki hooks only when running inside Anki.
 The engine/ and formats/ layers can be imported and tested independently.
 """
 
+import sys
 import tomllib
 from pathlib import Path
+
+# Bundled third-party packages (GitPython and its dependencies). Anki add-ons
+# cannot rely on pip, so they are shipped inside the add-on folder.
+_vendor_dir = str(Path(__file__).parent / "vendor")
+if _vendor_dir not in sys.path:
+    sys.path.insert(0, _vendor_dir)
 
 version = "0.1.8"
 

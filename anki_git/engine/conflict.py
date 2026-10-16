@@ -25,15 +25,15 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from anki_git.config import SyncMode
+from ..config import SyncMode
 
 _logger = logging.getLogger("anki_git")
 
 if TYPE_CHECKING:
     from anki.collection import Collection
 
-    from anki_git.formats.notes_md import Note
-    from anki_git.formats.notetype_yaml import Notetype, NotetypeField, NotetypeTemplate
+    from ..formats.notes_md import Note
+    from ..formats.notetype_yaml import Notetype, NotetypeField, NotetypeTemplate
 
 
 class ConflictType(Enum):
@@ -245,7 +245,7 @@ def enrich_conflicts_with_content(report: ConflictReport, col: Collection, repo_
     Optionally accepts a pre-built notes_lookup dict; if not provided,
     builds one (less efficient for batch operations).
     """
-    from anki_git.engine.import_helpers import load_all_repo_notes
+    from .import_helpers import load_all_repo_notes
 
     repo_notes = load_all_repo_notes(repo_path) if notes_lookup is None else notes_lookup
 

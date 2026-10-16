@@ -4,9 +4,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from anki_git.config import AnkiGitConfig
-from anki_git.engine.exporter import export_collection
-from anki_git.engine.git_ops import get_existing_remote_url, open_repo
+from .config import AnkiGitConfig
+from .engine.exporter import export_collection
+from .engine.git_ops import get_existing_remote_url, open_repo
 
 _config = None
 _logger = logging.getLogger("anki_git")
@@ -105,8 +105,8 @@ def save_config(config: AnkiGitConfig) -> None:
 def snapshot_action() -> None:
     from aqt.qt import QMessageBox
 
-    from anki_git.engine.diff import compute_export_diff_delta
-    from anki_git.ui import DiffDialog
+    from .engine.diff import compute_export_diff_delta
+    from .ui import DiffDialog
 
     config = load_config()
     from aqt import mw
@@ -144,7 +144,7 @@ def snapshot_action() -> None:
         mw.taskman.run_on_main(
             lambda: mw.progress.update(label="Preparing preview...")
         )
-        from anki_git.ui.diff import report_to_diff_data
+        from .ui.diff import report_to_diff_data
         ui_data = report_to_diff_data(data.report)
         _logger.info("UI data ready (%d items)", len(ui_data))
         return data, ui_data
@@ -217,9 +217,9 @@ def snapshot_action() -> None:
 def import_action() -> None:
     from aqt.qt import QMessageBox
 
-    from anki_git.engine.diff import compute_import_diff_delta
-    from anki_git.engine.importer import pull_from_repo
-    from anki_git.ui import ConflictResolutionDialog, DiffDialog
+    from .engine.diff import compute_import_diff_delta
+    from .engine.importer import pull_from_repo
+    from .ui import ConflictResolutionDialog, DiffDialog
 
     config = load_config()
     from aqt import mw
@@ -257,7 +257,7 @@ def import_action() -> None:
         mw.taskman.run_on_main(
             lambda: mw.progress.update(label="Preparing preview...")
         )
-        from anki_git.ui.diff import report_to_diff_data
+        from .ui.diff import report_to_diff_data
         ui_data = report_to_diff_data(data.report)
         return data, ui_data
 
@@ -324,7 +324,7 @@ def import_action() -> None:
                     diag = ConflictResolutionDialog(report, mw)
                     diag.exec()
                     return diag.resolved_report
-                from anki_git.ui.utils import run_on_main_sync
+                from .ui.utils import run_on_main_sync
                 return run_on_main_sync(mw, _show)
 
             return pull_from_repo(
@@ -380,7 +380,7 @@ def import_action() -> None:
 def settings_action() -> None:
     from aqt import mw
 
-    from anki_git.ui import SettingsDialog
+    from .ui import SettingsDialog
     config = load_config()
     dialog = SettingsDialog(config, mw)
     if dialog.exec():
@@ -435,7 +435,7 @@ def _fetch_remote_background(repo_path: Path) -> None:
     """Fire-and-forget git fetch from origin in a daemon thread."""
     import threading
 
-    from anki_git.engine.git_ops import open_repo
+    from .engine.git_ops import open_repo
 
     repo = open_repo(repo_path)
     if repo is None:
@@ -459,9 +459,9 @@ def _run_startup_import(config: AnkiGitConfig) -> None:
     from aqt import mw
     from aqt.qt import QMessageBox
 
-    from anki_git.engine.checksums import quick_repo_has_changes
-    from anki_git.engine.diff import compute_import_diff_delta
-    from anki_git.ui import DiffDialog
+    from .engine.checksums import quick_repo_has_changes
+    from .engine.diff import compute_import_diff_delta
+    from .ui import DiffDialog
 
     repo_path = Path(config.repo_path).expanduser().resolve()
 
@@ -493,7 +493,7 @@ def _run_startup_import(config: AnkiGitConfig) -> None:
         mw.taskman.run_on_main(
             lambda: mw.progress.update(label="Preparing preview...")
         )
-        from anki_git.ui.diff import report_to_diff_data
+        from .ui.diff import report_to_diff_data
         ui_data = report_to_diff_data(data.report)
         return data, ui_data
 
@@ -549,14 +549,14 @@ def _run_startup_import(config: AnkiGitConfig) -> None:
 
             def handle_conflicts_bg(report):
                 def _show():
-                    from anki_git.ui.conflicts import ConflictResolutionDialog
+                    from .ui.conflicts import ConflictResolutionDialog
                     diag = ConflictResolutionDialog(report, mw)
                     diag.exec()
                     return diag.resolved_report
-                from anki_git.ui.utils import run_on_main_sync
+                from .ui.utils import run_on_main_sync
                 return run_on_main_sync(mw, _show)
 
-            from anki_git.engine.importer import pull_from_repo
+            from .engine.importer import pull_from_repo
             result = pull_from_repo(
                 col, repo_path,
                 sync_mode=config.sync_mode,
@@ -623,7 +623,7 @@ def on_profile_open() -> None:
 
 def _push_background(repo_path: Path, remote_url: str) -> None:
     """Push to remote in a daemon thread — can be killed without data loss."""
-    from anki_git.engine.git_ops import open_repo, push_to_remote
+    from .engine.git_ops import open_repo, push_to_remote
     try:
         repo = open_repo(repo_path)
         if repo is not None:
@@ -648,7 +648,7 @@ def on_profile_close() -> None:
         _logger.warning("Collection already closed, skipping auto-export")
         return
 
-    from anki_git.engine.checksums import quick_has_changes
+    from .engine.checksums import quick_has_changes
     try:
         result = quick_has_changes(mw.col, repo_path)
         if result is False:
@@ -660,7 +660,7 @@ def on_profile_close() -> None:
     remote_url = _get_remote_url(repo_path, config.auto_push_after_snapshot)
 
     # Phase 1 — capture data from collection (synchronous, needs col open)
-    from anki_git.engine.exporter import capture_export_data
+    from .engine.exporter import capture_export_data
     try:
         captured = capture_export_data(
             mw.col, repo_path,
@@ -684,7 +684,7 @@ def on_profile_close() -> None:
     )
 
     def _write_and_push() -> None:
-        from anki_git.engine.exporter import write_export_data
+        from .engine.exporter import write_export_data
         try:
             result = write_export_data(
                 repo_path, captured,

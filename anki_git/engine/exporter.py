@@ -8,14 +8,14 @@ from typing import TYPE_CHECKING, Optional
 from anki.collection import Collection
 
 if TYPE_CHECKING:
-    from anki_git.engine.diff import ExportDiffData
+    from .diff import ExportDiffData
 
 from git.repo import Repo
 
-from anki_git.engine import export_helpers  # noqa: I001
-from anki_git.engine.checksums import content_hash, load_meta, save_meta
-from anki_git.engine.constants import DECKS_DIR, NOTETYPES_DIR
-from anki_git.engine.git_ops import (
+from . import export_helpers  # noqa: I001
+from .checksums import content_hash, load_meta, save_meta
+from .constants import DECKS_DIR, NOTETYPES_DIR
+from .git_ops import (
     create_snapshot_commit,
     ensure_gitignore,
     get_commit_count,
@@ -23,8 +23,8 @@ from anki_git.engine.git_ops import (
     push_to_remote,
     stage_files,
 )
-from anki_git.formats.notes_md import Note
-from anki_git.formats.notetype_yaml import (
+from ..formats.notes_md import Note
+from ..formats.notetype_yaml import (
     Notetype,
     notetype_paths,
     read_all_notetypes,
