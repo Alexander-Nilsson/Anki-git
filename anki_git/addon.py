@@ -659,12 +659,27 @@ def on_profile_close() -> None:
 
     remote_url = _get_remote_url(repo_path, config.auto_push_after_snapshot)
 
+    mw.progress.start(label="AnkiGit: preparing export...", immediate=True)
+    try:
+        _export_on_close(mw, repo_path, remote_url)
+    finally:
+        mw.progress.finish()
+
+
+def _export_on_close(mw: Any, repo_path: Path, remote_url: str) -> None:
+    import threading
+
+    from .engine.exporter import capture_export_data, write_export_data
+
     # Phase 1 — capture data from collection (synchronous, needs col open)
-    from .engine.exporter import capture_export_data
+    def on_progress(msg: str) -> None:
+        mw.progress.update(label=f"AnkiGit: {msg}")
+        # progress.update() only sets the label; pump events so it repaints
+        mw.app.processEvents()
+
     try:
         captured = capture_export_data(
-            mw.col, repo_path,
-            quick=True,
+            mw.col, repo_path, quick=True, progress_callback=on_progress
         )
     except Exception as e:
         _logger.warning("Failed to capture export data on close: %s", e)
@@ -676,19 +691,21 @@ def on_profile_close() -> None:
 
     # Phase 2+3 — write files + git commit + push in a non-daemon thread.
     # The captured data is fully serialized, so no collection access needed.
-    # Using non-daemon so the thread completes before process exit.
-    import threading
+    # Non-daemon so the thread completes before process exit; the main thread
+    # waits on it here, keeping the progress dialog alive.
     _logger.info(
         "Auto-export on close: %d notes, spawning background write",
         len(captured.note_entries),
     )
+    status = {"msg": "Writing files..."}
 
     def _write_and_push() -> None:
-        from .engine.exporter import write_export_data
         try:
             result = write_export_data(
-                repo_path, captured,
+                repo_path,
+                captured,
                 remote_url=remote_url,
+                progress_callback=lambda m: status.update(msg=m),
             )
             if result.error:
                 _logger.warning("Write on close failed: %s", result.error)
@@ -703,6 +720,9 @@ def on_profile_close() -> None:
 
     thread = threading.Thread(target=_write_and_push, daemon=False)
     thread.start()
+    while thread.is_alive():
+        on_progress(status["msg"])
+        thread.join(0.1)
 
 
 def init_addon() -> None:

@@ -1,10 +1,14 @@
 import contextlib
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from git import GitCommandError, InvalidGitRepositoryError, Repo
 
 _logger = logging.getLogger("anki_git")
+
+_STAGE_BATCH_SIZE = 500
+_MAX_MESSAGE_FILES = 200
 
 
 def validate_repo_path(repo_path: Path) -> bool:
@@ -47,11 +51,20 @@ def stage_all(repo: Repo) -> None:
     repo.git.add(all=True)
 
 
-def stage_files(repo: Repo, paths: list[str]) -> None:
+def stage_files(
+    repo: Repo,
+    paths: list[str],
+    progress_callback: Callable[[str], None] | None = None,
+) -> None:
     """Stage specific file paths relative to the repo root."""
     if not paths:
         return
-    repo.index.add(paths)
+    # Native `git add` is far faster than repo.index.add() for thousands of
+    # files. Batched to stay under the Windows command-line length limit.
+    for start in range(0, len(paths), _STAGE_BATCH_SIZE):
+        if progress_callback:
+            progress_callback(f"Staging files... {start}/{len(paths)}")
+        repo.git.add("-A", "--", *paths[start : start + _STAGE_BATCH_SIZE])
 
 
 def create_snapshot_commit(
@@ -65,9 +78,12 @@ def create_snapshot_commit(
         subject = ", ".join(sorted_files)
     else:
         subject = f"{len(sorted_files)} files changed"
-    body = "\n".join(f"- {f}" for f in sorted_files)
+    shown_files = sorted_files[:_MAX_MESSAGE_FILES]
+    body = "\n".join(f"- {f}" for f in shown_files)
+    if len(sorted_files) > len(shown_files):
+        body += f"\n... and {len(sorted_files) - len(shown_files)} more"
     message = f"{subject}\n\n{body}" if len(sorted_files) > 5 else subject
-    repo.index.commit(message)
+    repo.git.commit("--allow-empty", "--no-verify", "--no-gpg-sign", "-m", message)
 
 
 def push_to_remote(repo: Repo, remote_url: str) -> tuple[bool, str]:

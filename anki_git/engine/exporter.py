@@ -265,7 +265,7 @@ def write_export_data(
         try:
             if progress_callback:
                 progress_callback("Committing changes...")
-            stage_files(repo, list(changed_files))
+            stage_files(repo, list(changed_files), progress_callback)
             create_snapshot_commit(repo, list(changed_files))
         except Exception as e:
             result.error = f"Git commit failed: {e}"
