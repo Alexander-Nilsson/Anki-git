@@ -9,9 +9,9 @@ from typing import Any
 
 from anki.collection import Collection
 
-from anki_git.engine.constants import DECKS_DIR, NOTETYPES_DIR
-from anki_git.formats.notes_md import Note, parse_notes_file
-from anki_git.formats.notetype_yaml import Notetype
+from .constants import DECKS_DIR, NOTETYPES_DIR
+from ..formats.notes_md import Note, parse_notes_file
+from ..formats.notetype_yaml import Notetype
 
 _logger = logging.getLogger("anki_git")
 
@@ -360,7 +360,7 @@ def compute_notetype_diff(
 
 def compute_export_diff(col: Collection, repo_path: Path, progress_callback: Callable | None = None) -> DiffReport:
     """Compare current Anki collection vs repo state for export preview."""
-    from anki_git.formats.notetype_yaml import read_all_notetypes as _read_nt
+    from ..formats.notetype_yaml import read_all_notetypes as _read_nt
 
     report = DiffReport()
 
@@ -444,8 +444,8 @@ def compute_import_diff(col: Collection, repo_path: Path,
     data directly.  This enables the delta-import flow where the diff phase
     feeds pre-scanned data into the import phase.
     """
-    from anki_git.engine.checksums import content_hash
-    from anki_git.formats.notetype_yaml import read_all_notetypes as _read_nt
+    from .checksums import content_hash
+    from ..formats.notetype_yaml import read_all_notetypes as _read_nt
 
     report = DiffReport()
 
@@ -555,8 +555,8 @@ def compute_import_diff_delta(col: Collection, repo_path: Path,
     Falls back to the full scan if no last_commit_sha baseline exists
     (first run) or if there are too many changed files (heuristic).
     """
-    from anki_git.engine.checksums import content_hash, load_meta
-    from anki_git.engine.git_ops import get_changed_repo_files
+    from .checksums import content_hash, load_meta
+    from .git_ops import get_changed_repo_files
 
     meta = load_meta(repo_path)
     last_commit_sha = meta.get("last_commit_sha")
@@ -605,7 +605,7 @@ def compute_import_diff_delta(col: Collection, repo_path: Path,
     # Read all notetypes if any changed (they're small anyway)
     repo_notetypes: dict[str, Notetype] = {}
     if changed_notetype_names:
-        from anki_git.formats.notetype_yaml import read_all_notetypes as _read_nt
+        from ..formats.notetype_yaml import read_all_notetypes as _read_nt
         repo_notetypes = _read_nt(repo_path / NOTETYPES_DIR)
 
     # Build set of nids we need to look up in Anki
@@ -768,8 +768,8 @@ def _full_export_diff_scan(
     Used as fallback when no delta baseline exists (first run).
     Also serializes notes for pass-through to avoid a second scan.
     """
-    from anki_git.engine.checksums import content_hash
-    from anki_git.engine.export_helpers import capture_single_note
+    from .checksums import content_hash
+    from .export_helpers import capture_single_note
 
     report = DiffReport()
     decks_dir = repo_path / DECKS_DIR
@@ -833,10 +833,10 @@ def compute_export_diff_delta(
 
     Falls back to full scan if no baseline exists (first run).
     """
-    from anki_git.engine.checksums import content_hash, load_meta
-    from anki_git.engine.export_helpers import capture_single_note
-    from anki_git.engine.git_ops import get_changed_repo_files
-    from anki_git.formats.notetype_yaml import read_all_notetypes as _read_nt
+    from .checksums import content_hash, load_meta
+    from .export_helpers import capture_single_note
+    from .git_ops import get_changed_repo_files
+    from ..formats.notetype_yaml import read_all_notetypes as _read_nt
 
     meta = load_meta(repo_path)
     last_commit_sha = meta.get("last_commit_sha")

@@ -1,6 +1,6 @@
-from anki_git.ui.conflicts import ConflictResolutionDialog
-from anki_git.ui.diff import DiffDialog
-from anki_git.ui.settings import SettingsDialog
+from ..ui.conflicts import ConflictResolutionDialog
+from ..ui.diff import DiffDialog
+from ..ui.settings import SettingsDialog
 
 __all__ = [
     "SettingsDialog",

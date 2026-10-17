@@ -5,7 +5,7 @@ from pathlib import Path
 from anki.collection import Collection
 from git.repo import Repo
 
-from anki_git.engine.constants import META_DIR
+from .constants import META_DIR
 
 META_FILE = "meta.json"
 
@@ -54,7 +54,7 @@ def quick_repo_has_changes(repo_path: Path) -> bool | None:
     Returns False if definitely no repo changes, True if changes exist,
     or None if there is no baseline yet (first run).
     """
-    from anki_git.engine.git_ops import open_repo
+    from .git_ops import open_repo
 
     meta = load_meta(repo_path)
     if not meta:
@@ -85,7 +85,7 @@ def quick_has_changes(col: Collection, repo_path: Path) -> bool | None:
     (full sync can be skipped), True if changes likely exist, or None if
     there is no baseline yet (first run).
     """
-    from anki_git.engine.git_ops import open_repo
+    from .git_ops import open_repo
 
     meta = load_meta(repo_path)
     last_count = meta.get("last_note_count")
